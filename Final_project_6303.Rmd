@@ -1,0 +1,556 @@
+---
+title: "Final_project6303"
+author: "Jeyasooriya Saravanan"
+date: "2024-05-05"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+Introduction:
+
+Safe and readily available water is important for public health, whether it is used for drinking, domestic use, food production or recreational purposes. Improved water supply and sanitation, and better management of water resources, can boost countries’ economic growth and can contribute greatly to poverty reduction.
+
+Contaminated water and poor sanitation are linked to transmission of diseases such as cholera, diarrhoea, dysentery, hepatitis A, typhoid, and polio. Absent, inadequate, or inappropriately managed water and sanitation services expose individuals to preventable health risks. This is particularly the case in health care facilities where both patients and staff are placed at additional risk of infection and disease when water, sanitation, and hygiene services are lacking. Globally, 15% of patients develop an infection during a hospital stay, with the proportion much greater in low-income countries.
+
+So, I took some inspiration from this to use this Water Quality dataset to understand what constitutes to safe, Potable water and apply machine learning to it to distinguish between Potable and Non-Potable water.
+
+Problem Statement:
+
+This dataset contains information about various factors affecting water quality. It includes measurements of pH, hardness, solids, chloramines, sulfate, conductivity, organic carbon, trihalomethanes, turbidity, and potability of water samples.Here, potability is the target variable  consisting of interger values like 0 and 1.
+0 denotes bad water potability.
+1 denotes good water potability.
+Task is to predict this water potability for any newly given features like ph values and hardness etc.
+
+
+
+Feature Description:
+
+1.ph: pH of 1. water (0 to 14).
+
+2.Hardness: Capacity of water to precipitate soap in mg/L.
+
+3.Solids: Total dissolved solids in ppm.
+
+4.Chloramines: Amount of Chloramines in ppm.
+
+5.Sulfate: Amount of Sulfates dissolved in mg/L.
+
+6.Conductivity: Electrical conductivity of water in μS/cm.
+
+7.Organic_carbon: Amount of organic carbon in ppm.
+
+8.Trihalomethanes: Amount of Trihalomethanes in μg/L.
+
+9.Turbidity: Measure of light emiting property of water in NTU.
+
+10.Potability: Indicates if water is safe for human consumption. Potable - 1 and Not potable - 0
+
+
+```{r}
+dataframe <- read.csv("/Users/sooriya/Documents/water_potability.csv")
+```
+
+```{r}
+head(dataframe)
+```
+```{r}
+num_rows <- nrow(dataframe)
+num_columns <- ncol(dataframe)
+print(paste("Number of rows:", num_rows))
+print(paste("Number of columns:", num_columns))
+```
+
+The shape of the dataset includes 10 features and 3276 instances in total.
+
+```{r}
+sapply(dataframe, class)
+```
+
+There are totally around 9 numeric features and one integer feature denoting no categorical columns.
+
+```{r}
+summary(dataframe)
+```
+```{r}
+#Check for duplicate rows in the dataset.if exists, we delete the rows so that the redundant data doesn't get added.
+duplicated(dataframe)
+```
+
+```{r}
+sum(duplicated(dataframe))
+```
+
+We can see that there are no duplicate rows in the dataset.If it exist, it could have affected the Model prediction by adding reducdant information.
+```{r}
+# Checking for total number of NA values in each column
+sum_na <- sapply(dataframe, function(x) sum(is.na(x)))
+print(sum_na)
+```
+
+Above is the display of null values in each of the columns.
+
+```{r}
+# Checking for any NA values in the entire dataset
+total_na <- sum(is.na(dataframe))
+print(total_na)
+```
+
+We can see that there are around 1434 null values in the dataset.
+
+```{r}
+
+#install.packages("VIM", dependencies=TRUE)
+#library(VIM)
+dataframe<-na.omit(dataframe)
+head(dataframe)
+```
+
+So, we have omitted the null values considering it won't affect our prediction.
+
+```{r}
+#checking for the Null values.
+total_na <- sum(is.na(dataframe))
+print(total_na)
+```
+
+So, we can see that there is no null values now after omitting them.
+
+```{r}
+#check for new dimensions
+dim(dataframe)
+summary(dataframe)
+```
+
+
+```{r}
+#Exploratory Data Analysis
+library(ggplot2)
+library(reshape2)
+```
+```{r}
+#Exploratory Data Analysis
+# Assuming 'data' is your dataframe
+# Calculate the correlation matrix
+correlation_matrix <- cor(dataframe) 
+
+# Melt the correlation matrix for ggplot
+melted_corr_matrix <- melt(correlation_matrix)
+
+# Create a heatmap with correlation values
+ggplot(data = melted_corr_matrix, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +  # Adds borders to the tiles
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +  # Add text labels, formatted to 2 decimal places
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name = "Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank()) +
+  labs(title = "Correlation Matrix Heatmap")
+```
+Its evident from the correlation matrix that there is no correlation between the independent variables.So, no place for multicollinearity.
+
+Exploratory Data Analysis:
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = ph, y = ph)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for PH Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+
+We can see there are outliers present in PH feature.This needs to handled so that it doesn't affect our prediction.
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Hardness, y = Hardness)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Hardness", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+
+We can see there are outliers present in Hardness feature.This needs to handled so that it doesn't affect our prediction.
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Solids, y = Solids)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Solids Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+We can see there are outliers present in Solids feature.This needs to handled so that it doesn't affect our prediction.
+
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Chloramines, y = Chloramines)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Chloramines Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+We can see there are outliers present in Chloramines feature.This needs to handled so that it doesn't affect our prediction.
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Sulfate, y = Sulfate)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Sulfate Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+We can see there are outliers present in Sulfate feature.This needs to handled so that it doesn't affect our prediction.
+
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Conductivity, y = Conductivity)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Conductivity Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+We can see there are outliers present in Conductivity feature.This needs to handled so that it doesn't affect our prediction.
+
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Organic_carbon, y = Organic_carbon)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Organic_carbon Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+
+We can see there are outliers present in Organic Carbon feature.This needs to handled so that it doesn't affect our prediction.
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Trihalomethanes, y = Trihalomethanes)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Trihalomethanes Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+We can see there are outliers present in Trihalomethanes feature.This needs to handled so that it doesn't affect our prediction.
+
+```{r}
+#Exploratory Data Analysis
+# Box Plots for Numerical variables to check for outliers if present.
+ggplot(dataframe, aes(x = Turbidity, y = Turbidity)) +
+  geom_boxplot(notch = TRUE, varwidth = TRUE,fill = "lightblue", color = "darkblue") +
+  labs(title = "Boxplot for Turbidity Variable", x = "ph", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1") +  # Adds color to the boxes
+  theme_light()  # A lighter theme
+```
+We can see there are outliers present in Turbidity feature.This needs to handled so that it doesn't affect our prediction.
+
+```{r}
+#Exploratory Data Analysis
+# Histogram plot for Numerical variables to check for their distribution.
+ggplot(dataframe, aes(x=ph, fill=Potability)) +
+geom_histogram(alpha=0.5,bins=300,position='identity')
+```
+We can see that the distribution of PH variable following a normal distribution.So, no scaling is required.
+```{r}
+#Exploratory Data Analysis
+ggplot(dataframe, aes(x=Hardness, fill=Potability)) +
+  geom_histogram(alpha=0.5,bins=300,position='identity')
+```
+We can see that the distribution of Hardness variable following a normal distribution.So, no scaling is required.
+
+```{r}
+#Exploratory Data Analysis
+ggplot(dataframe, aes(x=Chloramines, fill=Potability)) +
+  geom_histogram(alpha=0.5,bins=300,position='identity')
+```
+We can see that the distribution of Chloramines variable following a normal distribution.So, no scaling is required.
+
+
+```{r}
+#Exploratory Data Analysis
+ggplot(dataframe, aes(x=Conductivity, fill=Potability)) +
+  geom_histogram(alpha=0.5,bins=300,position='identity')
+```
+We can see that the distribution of Conductivity variable following a normal distribution.So, no scaling is required.
+
+
+```{r}
+#Exploratory Data Analysis
+ggplot(dataframe, aes(x=Organic_carbon, fill=Potability)) +
+  geom_histogram(alpha=0.5,bins=300,position='identity')
+```
+We can see that the distribution of Organic_carbon variable following a normal distribution.So, no scaling is required.
+
+Scatter Plots:
+
+```{r}
+#Exploratory Data Analysis
+#scatter plot for checking correlation between features
+plot(dataframe$ph, dataframe$Organic_carbon, 
+     main = "Scatter Plot for PH and Organic carbon", 
+     xlab = "PH", 
+     ylab = "Organic_carbon",
+     col = "lightpink",        # Set the color of points to red
+     pch = 19)  
+```
+From the Scatter plot of PH and Organic Carbon features, we see there is no correlation.
+
+```{r}
+#Exploratory Data Analysis
+#scatter plot for checking correlation between features
+plot(dataframe$ph, dataframe$Hardness, 
+     main = "Scatter Plot for PH and Hardness", 
+     xlab = "PH", 
+     ylab = "Organic_carbon",
+     col = "lightgreen",        # Set the color of points to red
+     pch = 19)  
+```
+
+From the Scatter plot of PH and Hardness features, we see there is no correlation.
+
+
+Outlier Treatment:
+
+```{r}
+
+# Removing the outliers from the numerical columns
+library(dplyr)
+replace_outliers <- function(x) {
+  q1 <- quantile(x, 0.25, na.rm = TRUE)  # Set na.rm to TRUE
+  q3 <- quantile(x, 0.75, na.rm = TRUE)  # Set na.rm to TRUE
+  IQR <- q3 - q1
+  Lower <- q1 - 1.5 * IQR
+  Upper <- q3 + 1.5 * IQR
+  # Replace outliers
+  x[x < Lower] <- Lower
+  x[x > Upper] <- Upper
+  return(x)
+}
+
+```
+
+After performing the outliers treatment, we can possibly get better prediction results.
+
+```{r}
+# Summary statistics before removing outliers
+summary(dataframe)
+```
+
+```{r}
+dataframe[, 1:9] <- lapply(dataframe[, 1:9], replace_outliers)
+
+# Summary statistics after removing outliers
+summary(dataframe)
+```
+Here, you can see the change in summary statistics in each of the independent features.This effect came to play after the outlier treatment.
+
+
+Model Building:
+
+```{r}
+set.seed(6838) 
+```
+```{r}
+#Train Test Split
+library(caret)
+train_ind <- createDataPartition(dataframe$Potability, p = 0.8, list = FALSE)
+traindata <- dataframe[train_ind, ]
+testdata <- dataframe[-train_ind, ]
+```
+```{r}
+#Model Building
+#Decision Tree using information gain criteria
+library(rpart)
+tree_gain_ratio <- rpart(Potability ~ ., data = traindata, method = "class", parms = list(split = "information"))
+summary(tree_gain_ratio)
+```
+
+```{r}
+#Decision Tree using  gini index criteria
+tree_gini <- rpart(Potability ~ ., data = traindata, method = "class", parms = list(split = "gini"))
+summary(tree_gini)
+```
+
+Above is the spliting criteria for the Decision Tree using  gini index.
+We have set the seed to 6838 to make sure that the random numbers gonna be unique and its the same everytime we run the program.And we observe the results in 
+```{r}
+library(ggplot2)
+#Confusion matrix for gain ratio
+pred<-predict(tree_gain_ratio, testdata, type="class")
+table(actual= testdata$Potability, predictions=pred)
+conf_matrix <- as.data.frame(table(actual = testdata$Potability, predictions = pred))
+ggplot(conf_matrix, aes(x = actual, y = predictions, fill = Freq)) +
+  geom_tile(color = "purple") +
+  geom_text(aes(label = Freq), vjust = 1) +
+  scale_fill_gradient(low = "white", high = "lightblue") +
+  labs(title = "Confusion Matrix", x = "Actual", y = "Predicted") +
+  theme_minimal()
+```
+The confusion matrix helps evaluate the performance of a classification model. It provides a clear view of how well the model’s predictions align with the actual outcomes. In our specific matrix:
+
+True Negatives (TN): 57
+False Positives (FP): 73
+False Negatives (FN): 184
+True Positives (TP): 88
+
+```{r}
+#Confusion matrix for gini index
+pred<-predict(tree_gini, testdata, type="class")
+table(actual= testdata$Potability, predictions=pred)
+conf_matrix <- as.data.frame(table(actual = testdata$Potability, predictions = pred))
+ggplot(conf_matrix, aes(x = actual, y = predictions, fill = Freq)) +
+  geom_tile(color = "purple") +
+  geom_text(aes(label = Freq), vjust = 1) +
+  scale_fill_gradient(low = "white", high = "lightblue") +
+  labs(title = "Confusion Matrix", x = "Actual", y = "Predicted") +
+  theme_minimal()
+
+```
+The confusion matrix helps evaluate the performance of a classification model. It provides a clear view of how well the model’s predictions align with the actual outcomes. In our specific matrix:
+
+True Negatives (TN): 51
+False Positives (FP): 83
+False Negatives (FN): 190
+True Positives (TP): 98
+
+```{r}
+# Ploting decision tree with Gain ratio and Gini index
+library('rpart.plot')
+rpart.plot(tree_gain_ratio, type = 3, extra = 1, main = "Decision Tree using Gain Ratio Criteria")
+```
+
+Root Split:
+Sulfate < 261: Instances with Sulfate values less than 261 are directed to the left branch.
+Sulfate >= 261: Instances with Sulfate values greater than or equal to 261 are directed to the right branch.
+Left Subtree (Sulfate < 261):
+ph < 4.7: This split further divides instances based on pH levels.
+For instances with ph >= 7.8:
+Sulfate >= 288: This path leads to a leaf node classifying instances with counts [0 7 23], meaning 7 instances of class 0 and 23 instances of class 1.
+Right Subtree (Sulfate >= 261):
+Solids < 18e+3: Further splits the data based on the "Solids" feature.
+For instances with Solids >= 18e+3:
+This path leads to a leaf node classifying instances with counts [0 5 39], indicating 5 instances of class 0 and 39 instances of class 1.
+
+```{r}
+# Ploting decision tree with Gain ratio and Gini index
+rpart.plot(tree_gini, type = 3, extra = 1, main = "Decision Tree using Gini Index Criteria")
+```
+Interpretation of the Splits:
+Top Node (Root): The initial split is based on the "Sulfate" feature. Data with a Sulfate value less than 261 go to the left branch, and those with Sulfate 261 or more go to the right branch.
+Subsequent Splits: Each branch further splits based on different features and conditions:
+Left Branch: After the initial split, further decisions are made based on "Hardness", "pH", "Chloramines", and other Sulfate thresholds.
+Right Branch: The decisions include splits based on "Solids", "pH", "Hardness", and further subdivisions by pH and Sulfate content.
+Leaf Nodes:
+Each leaf node (shown as green circles at the bottom) gives the final classification decision for the instances that end up in that leaf. The numbers in the leaves represent the count of instances classified as 0 (left number in blue) and 1 (right number in blue).
+
+
+```{r}
+# Evaluating the model using Confusion Matrix
+predictions_gain_ratio <- predict(tree_gain_ratio, newdata = testdata, type = "class")
+predictions_gini <- predict(tree_gini, newdata = testdata, type = "class")
+
+```
+```{r}
+library(pROC)
+library(ROCR)
+library(caret)
+
+# Convert predictions to factors with explicit levels
+predictions_gain_ratio <- factor(predictions_gain_ratio, levels = c("0", "1"))
+predictions_gini <- factor(predictions_gini, levels = c("0", "1"))
+
+# Ensure the actual outcomes are also factors with the same levels
+testdata$Potability <- factor(testdata$Potability, levels = c("0", "1"))
+
+# Now calculate the confusion matrices
+confusion_matrix_gain_ratio <- confusionMatrix(predictions_gain_ratio, testdata$Potability)
+confusion_matrix_gini <- confusionMatrix(predictions_gini, testdata$Potability)
+
+# Print the confusion matrices
+print(confusion_matrix_gain_ratio)
+```
+This model shows reasonable predictive power but is particularly limited by its moderate sensitivity and poor specificity. The balanced accuracy of approximately 61% reflects an average performance in handling both classes effectively. The Kappa statistic and marginal improvement over the No Information Rate suggest that the model's predictive power could benefit significantly from further tuning and perhaps more sophisticated feature engineering or algorithmic adjustments.
+
+```{r}
+print(confusion_matrix_gini)
+```
+This model shows a moderate ability to predict the positive class but struggles with identifying negatives accurately, as reflected by low specificity. While it does better than random guessing regarding detecting positives (sensitivity), its overall effectiveness is limited by its inability to distinguish between classes accurately and equally (balanced accuracy). The model would benefit from adjustments or additional training to improve its specificity and thus its overall predictive power. The results also suggest careful evaluation of the model's application, considering its limitations in differentiating between the classes effectively.
+
+```{r}
+# Accuracy
+accuracy_gain_ratio <- confusion_matrix_gain_ratio$overall['Accuracy']
+accuracy_gini_index <- confusion_matrix_gini$overall['Accuracy']
+
+cat("Accuracy of model using Gain ratio:", accuracy_gain_ratio, "\n")
+cat("Accuracy of model using Gini index:", accuracy_gini_index, "\n")
+```
+The model using the Gain Ratio slightly outperforms the one using the Gini Index, with a difference in accuracy of about 1%. While both models show similar performance levels, the slight edge in accuracy suggests that the Gain Ratio might be slightly more effective in this specific scenario for handling the particularities of the dataset used.
+
+```{r}
+# Extracting the confusion matrix data
+confu_mat_data_gain_ratio <- as.matrix(confusion_matrix_gain_ratio$table)
+confu_mat_data_gini <- as.matrix(confusion_matrix_gini$table)
+```
+
+```{r}
+
+# Plotting ROC and Calculating AUC
+probabilities_gain_ratio <- predict(tree_gain_ratio, newdata = testdata, type = "prob")[, 1]
+probabilities_gini <- predict(tree_gini, newdata = testdata, type = "prob")[, 1]
+roc_gain_ratio <- roc(testdata$Potability, probabilities_gain_ratio)
+roc_gini <- roc(testdata$Potability, probabilities_gini)
+```
+
+```{r}
+# ROC curve
+plot(roc_gain_ratio, col = "blue", main = "ROC Curve for Gain Ratio",print.auc = TRUE)
+# AUC
+auc_gain_ratio <- auc(roc_gain_ratio)
+cat("AUC of model using Gain ratio:", auc_gain_ratio, "\n")
+
+```
+The ROC curve is slightly above the diagonal line, indicating that the model performs better than a random guess, but with an AUC of 0.636, the model is not highly effective in distinguishing between the classes.The performance is moderate, and this suggests that the model, or perhaps the features it's using, might need to be revisited to improve its ability to classify more accurately. 
+
+
+```{r}
+# ROC curve
+plot(roc_gini, col = "blue", main = "ROC Curve for Gini Index", print.auc = TRUE)
+# AUC
+auc_gini <- auc(roc_gini)
+cat("AUC of model using Gini index:", auc_gini, "\n")
+```
+
+The ROC curve above the diagonal baseline indicates that the model does have predictive ability that is better than a random guess.An AUC of 0.640 is generally considered acceptable. In practical terms, this model, when faced with a random positive and a random negative instance, would correctly assign a higher probability of being positive to the actual positive instance approximately 64% of the time.Improving the model might involve feature engineering, model tuning, or trying different algorithms to increase the AUC, thereby enhancing both the sensitivity and specificity of the model.
+
+Conclusion:
+
+1.By Comparing both the decision Tree Models using gini index and information gain, we were able to confirm that the Model with information gain gave us the best prediction as evident with its accuracy and AUC Score.The Model's accuracy could have been improved by performing some hyperparameter tuning like number of depths etc.
+2.The correlation coefficients between the features were very low.
+
+
+References:
+
+[1] Roberto F., et al. Evaluation of a GFP reporter gene construct for environmental arsenic detection. Talanta, 2002, 58(1): 181-188.   
+[2] Erdogan O., et al. Critical evaluation of wastewater treatment and disposal strategies for Istanbul with regards to water quality monitoring study results. ELSEVISE, 2008, 226: 231-248. 
+[3] Lourenco N.D., et al. UV spectra analysis for water quality monitoring in a fuel park wastewater treatment plant. Chemosphere, 2006, 65: 786-791. 
+[4] Kim B. C. Multi-channel continuous water toxicity monitoring system: its evaluation and application to water dis-charged from a power plant. Environmental Monitoring and Assessment, 2005, 109(3): 156-164.
+
+
